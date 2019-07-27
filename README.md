@@ -14,4 +14,4 @@ Videos from the simulations are available at: https://sergioperezresearch.wordpr
 <img src="https://github.com/sergiopperez/Well_Balanced_Finite_Volume/tree/master/figures/density-1.png" width="200">
 
 
-![density_1](/figures/density3D-73.png)
+![density_1](/figures/images.png)
