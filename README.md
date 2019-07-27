@@ -8,4 +8,4 @@ Abstract: Well balanced and free energy dissipative first- and second-order accu
 #
 Videos from the simulations are available at: https://sergioperezresearch.wordpress.com/well-balanced/
 #
-![density_1](/figures/images.png)
+![images](/figures/image.png)
