@@ -5,7 +5,7 @@
 % 
 % AUTHOR OF THE CODE: SERGIO P. PEREZ
 %
-% COAUTHORS: JOSÉ A. CARRILLO, SERAFIM KALLIADASIS, CHI-WANG SHU
+% COAUTHORS: JOS? A. CARRILLO, SERAFIM KALLIADASIS, CHI-WANG SHU
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -57,15 +57,15 @@ n=length(U)/2;
 if bc==2 % Periodic boundary conditions in both density and momentum
     U=[U(n-2);U(1:n-2);U(1);U(2*n-4);U(n-1:2*n-4);U(n-1)];
     x=[x(end);x;x(1)];
-    deltax=[deltax(end);deltax;deltax(1)];
+   % deltax=[deltax(end);deltax;deltax(1)];
 elseif bc==3 % Periodic boundary conditions in density and reflective in momentum
     U=[U(n-2);U(1:n-2);U(1);U(n-1)/U(1)*U(n-2);U(n-1:2*n-4);U(2*n-4)/U(n-2)*U(1)];
     x=[x(end);x;x(1)];
-    deltax=[deltax(end);deltax;deltax(1)];
+   % deltax=[deltax(end);deltax;deltax(1)];
 elseif bc==4 % Reflective boundary conditions in density and momentum
     U=[U(1);U(1:n-2);U(n-2);U(n-1);U(n-1:2*n-4);U(2*n-4)];
     x=[x(1);x;x(end)];
-    deltax=[deltax(1);deltax;deltax(end)];
+   % deltax=[deltax(1);deltax;deltax(end)];
 end
 %--------------------------------------------------------------------------
 % Evaluation of H(x,\rho): the part of the variation of the free energy 
@@ -83,6 +83,7 @@ elseif cik==2
     Wconvrho=Wgaussianconvrhofunction(x,U(1:n),deltax);
 end
 
+
 % b) External potential V(x)
 
 if cep==0
@@ -93,6 +94,7 @@ elseif cep==1
     % V=-log(1+exp(-16*x.^2));
     % V=1/6*exp(-x.^2/6);
 end
+
 
 % c) Hard rods excessive free energy
 
@@ -105,6 +107,8 @@ end
 % d) Add all the terms to form H(x,\rho)
 
 H=Wconvrho+V+HR;
+
+
 
 %--------------------------------------------------------------------------
 % Construction of left and right values of the variable vector U at the 
@@ -153,6 +157,8 @@ if pd>1
 elseif pd==1
       Uiplushalfplus(1:n)=circshift(rhoil,-1).*exp((-max(Hir,circshift(Hil,-1))+circshift(Hil,-1))./nu);
       Uiplushalfminus(1:n)=rhoir.*exp((-max(Hir,circshift(Hil,-1))+Hir)./nu);
+% % % % %       Uiplushalfplus(1:n)=circshift(rhoil,+1).*exp((-max(Hir,circshift(Hil,+1))+circshift(Hil,+1))./nu);
+% % % % %       Uiplushalfminus(1:n)=rhoir.*exp((-max(Hir,circshift(Hil,+1))+Hir)./nu);
 end
 
 if bc==1 % Implement no flux conditions with bc==1
@@ -160,9 +166,13 @@ if bc==1 % Implement no flux conditions with bc==1
 Uiplushalfplus(n)=0;
 Uiplushalfminus(n)=0;
 end
- 
+
+% Fix mistake in following lines! It should have uir and uil
 Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(U(n+1:2*n)./U(1:n),-1);
 Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
+%Correction could be:
+%Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(uil,-1);
+%Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*uir;
 
 %--------------------------------------------------------------------------
 % Consturction of numerical flux whose inputs are the plus and minus values
@@ -201,7 +211,7 @@ Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
 % Construction of source term
 %--------------------------------------------------------------------------  
 
-
+S=zeros(2*n,1);
   Sic=zeros(n,1);
   
 
@@ -210,20 +220,19 @@ Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
           Siplushalfminus=1./deltax.*(nu*Uiplushalfminus(1:n).^pd-nu*rhoir.^pd);
           
           Siminushalfplus=1./deltax.*(nu*rhoil.^pd-nu*circshift(Uiplushalfplus(1:n),+1).^pd);
+         
           
-%                      rhoilaver=max(rhoil-0.25*(Hir+Hil)+0.5*Hil,0);
-%                    rhoiraver=max(rhoir-0.25*(Hir+Hil)+0.5*Hir,0);
+
                     
            rhoilaver=rhoil-(Hir+Hil)/2/pd+Hil/pd;
           rhoiraver=rhoir-(Hir+Hil)/2/pd+Hir/pd;
           
            Sic=1/deltax*(rhoir.^pd-rhoiraver.^pd-rhoil.^pd+rhoilaver.^pd);
 %           Sic=-1/deltax*(rhoil+rhoir)/2.*(Hir-Hil);
-      elseif choicepressure==1
+      elseif pd==1
           
-          Siplushalfminus=1/deltax*(Uiplushalfminus(1:n)-rhoir);
-          
-          Siminushalfplus=1/deltax*(rhoil-circshift(Uiplushalfplus(1:n),+1));
+          Siplushalfminus=1./deltax.*(Uiplushalfminus(1:n)-rhoir);
+          Siminushalfplus=1./deltax.*(rhoil-circshift(Uiplushalfplus(1:n),+1));
           
           rhoilaver=rhoil.*exp(-0.5*(Hir+Hil)+Hil);
           rhoiraver=rhoir.*exp(-0.5*(Hir+Hil)+Hir);
@@ -231,7 +240,7 @@ Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
 %            rhoilaver=exp(-0.5*(Hir+Hil)+Hil+piil);
 %           rhoiraver=exp(-0.5*(Hir+Hil)+Hir+piir);
 %           
-          Sic=1/deltax*(rhoir-rhoiraver-rhoil+rhoilaver);
+          Sic=1./deltax.*(rhoir-rhoiraver-rhoil+rhoilaver);
 
           
           
@@ -240,15 +249,23 @@ Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
       S(n+1:2*n)=Siplushalfminus+Siminushalfplus+Sic-gamma*U(1+n:2*n);
 
 if cCS==1
-    S(n+1:2*n)=S(n+1:2*n)-CSconvfunction(x,U(1:n),U(n+1:2*n),deltax);
+    CSconv=CSconvfunction(x,U(1:n),U(n+1:2*n));
+    S(n+1:2*n)=S(n+1:2*n)-CSconv';
 end
+
+%   %%%% Cucker-Smale
+%   if choiceCS==0
+%       CSconv=zeros(length(x),1);
+%   elseif choiceCS==1
+%       CSconv=CSconvfunction(x,U(1:n),U(n+1:2*n)./U(1:n))';
+%   end
 
 %--------------------------------------------------------------------------
 % Finally, computation of the temporal derivative of the variables U
 %--------------------------------------------------------------------------  
 
-dUdt=-1./[deltax;deltax].*(F_iplushalf-F_iminushalf)+S;
-  
+dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
+
 %--------------------------------------------------------------------------
 %--------------------------------------------------------------------------
 %--------------------------------------------------------------------------
@@ -342,7 +359,7 @@ dUdt=-1./[deltax;deltax].*(F_iplushalf-F_iminushalf)+S;
 %           conv(n/2+1:end)=flipud(conv(1:n/2));
 %           conv=conv';
       end
-  
+                           
       function conv=kderconvrhofunction(x,rho)
           deltax=x(2)-x(1);
           conv=deltax*sum((repmat(x',length(x),1)-x).*rho);

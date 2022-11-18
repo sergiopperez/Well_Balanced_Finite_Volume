@@ -101,9 +101,12 @@ while t(i)<timemax
         U(:,i+1)=1/3*U(:,i)+2/3*psi_2+2/3*deltat*first_order_WB_FV_function(x,deltax,psi_2,pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc);
         
     elseif choiceorder==2      
-        psi_1=U(:,i)+deltat*second_order_FV_LLF_FUNCTION(U(:,i),deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);     
-        psi_2=3/4*U(:,i)+1/4*psi_1+1/4*deltat*second_order_FV_LLF_FUNCTION(psi_1,deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);      
-        U(:,i+1)=1/3*U(:,i)+2/3*psi_2+2/3*deltat*second_order_FV_LLF_FUNCTION(psi_2,deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);       
+      %  psi_1=U(:,i)+deltat*second_order_FV_LLF_FUNCTION(U(:,i),deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);     
+      %  psi_2=3/4*U(:,i)+1/4*psi_1+1/4*deltat*second_order_FV_LLF_FUNCTION(psi_1,deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);      
+       % U(:,i+1)=1/3*U(:,i)+2/3*psi_2+2/3*deltat*second_order_FV_LLF_FUNCTION(psi_2,deltax,x',choicewellbalance,choicepressure,choicekernel,choicepotential,choiceCS,V);     
+ psi_1=U(:,i)+deltat*second_order_WB_FV_function(x,deltax,U(:,i),pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc); 
+        psi_2=3/4*U(:,i)+1/4*psi_1+1/4*deltat*second_order_WB_FV_function(x,deltax,psi_1,pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc);     
+        U(:,i+1)=1/3*U(:,i)+2/3*psi_2+2/3*deltat*second_order_WB_FV_function(x,deltax,psi_2,pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc);      	   
     end
     
     % Message in command window
