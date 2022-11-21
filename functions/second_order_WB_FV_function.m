@@ -5,7 +5,7 @@
 % 
 % AUTHOR OF THE CODE: SERGIO P. PEREZ
 %
-% COAUTHORS: JOS? A. CARRILLO, SERAFIM KALLIADASIS, CHI-WANG SHU
+% COAUTHORS: JOS� A. CARRILLO, SERAFIM KALLIADASIS, CHI-WANG SHU
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -49,7 +49,7 @@
 
 
 
-function dUdt = second_order_WB_FV_function(x,deltax,U,pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc)
+function [dUdt,H]= second_order_WB_FV_function(x,deltax,U,pd,nu,cik,alpha,cep,a,b,cefrHR,M,gamma,cCS,bc)
 
 n=length(U)/2;
 
@@ -57,15 +57,15 @@ n=length(U)/2;
 if bc==2 % Periodic boundary conditions in both density and momentum
     U=[U(n-2);U(1:n-2);U(1);U(2*n-4);U(n-1:2*n-4);U(n-1)];
     x=[x(end);x;x(1)];
-   % deltax=[deltax(end);deltax;deltax(1)];
+   deltax=[deltax(end);deltax;deltax(1)];
 elseif bc==3 % Periodic boundary conditions in density and reflective in momentum
     U=[U(n-2);U(1:n-2);U(1);U(n-1)/U(1)*U(n-2);U(n-1:2*n-4);U(2*n-4)/U(n-2)*U(1)];
     x=[x(end);x;x(1)];
-   % deltax=[deltax(end);deltax;deltax(1)];
+   deltax=[deltax(end);deltax;deltax(1)];
 elseif bc==4 % Reflective boundary conditions in density and momentum
     U=[U(1);U(1:n-2);U(n-2);U(n-1);U(n-1:2*n-4);U(2*n-4)];
     x=[x(1);x;x(end)];
-   % deltax=[deltax(1);deltax;deltax(end)];
+   deltax=[deltax(1);deltax;deltax(end)];
 end
 %--------------------------------------------------------------------------
 % Evaluation of H(x,\rho): the part of the variation of the free energy 
@@ -89,7 +89,13 @@ end
 if cep==0
     V=zeros(length(x),1);
 elseif cep==1
-    V=a*abs(x).^4+b*abs(x).^2;
+     V=a*abs(x).^4+b*abs(x).^2;
+%     for  j=1:n+1
+%       Vh(j,1)=a*abs(xboundary(j))^4+b*abs(xboundary(j))^2;
+%     end
+%     for j=1:n
+%       V(j,1)=0.5*(Vh(j,1)+Vh(j+1,1));
+%     end
     % Other possible choices of the external potential:
     % V=-log(1+exp(-16*x.^2));
     % V=1/6*exp(-x.^2/6);
@@ -119,23 +125,30 @@ H=Wconvrho+V+HR;
 [rhoir, rhoil]=MUSCLreconstruction2(U(1:n));
    
 % Reconstruction of the velocity
-[uir, uil]=MUSCLreconstruction2vel(U(n+1:2*n)./U(1:n),rhoir, rhoil,U(1:n));
-%[uir, uil]=MUSCLreconstruction(U(n+1:2*n)./U(1:n));
+
+uu=desingula(U(n+1:2*n),U(1:n));   %%add by YL
+
+% [uir, uil]=MUSCLreconstruction2vel(uu,rhoir,rhoil,U(1:n)); 
+
+ [uir, uil]=MUSCLreconstruction(uu);
+
+% [uir, uil]=MUSCLreconstruction2vel(U(n+1:2*n)./U(1:n),rhoir,rhoil,U(1:n)); 
+%%[uir, uil]=MUSCLreconstruction(U(n+1:2*n)./U(1:n));
   
 % Reconstruction of the source: like in the book of Bouchut
 if pd>1  
 %[Hir, Hil]=MUSCLreconstruction(H);  
-
-[PiHir, PiHil]=MUSCLreconstruction2(2*U(1:n)+H);            
-Hir=PiHir-pd*(rhoir).^(pd-1);
-Hil=PiHil-pd*(rhoil).^(pd-1);  
+[PiHir, PiHil]=MUSCLreconstruction2(nu*pd/(pd-1)*(U(1:n)).^(pd-1)+H);            
+Hir=PiHir-nu*pd/(pd-1)*(rhoir).^(pd-1);
+Hil=PiHil-nu*pd/(pd-1)*(rhoil).^(pd-1);  
       
 elseif pd==1      
 %[Hir, Hil]=MUSCLreconstruction(H);
 
 [PiHir, PiHil]=MUSCLreconstruction2(log(U(1:n))+H);
-[piir, piil]=MUSCLreconstruction2(log(U(1:n)));
- 
+% [piir, piil]=MUSCLreconstruction2(log(U(1:n)));
+ piir=log(rhoir);
+ piil=log(rhoil);
 Hir=PiHir-piir;
 Hil=PiHil-piil;      
 end
@@ -150,15 +163,22 @@ end
   
 Uiplushalfminus=zeros(2*n,1);
 Uiplushalfplus=zeros(2*n,1);
-  
+
 if pd>1
-      Uiplushalfplus(1:n)=((pd-1)/pd*max(((pd/(pd-1)*circshift(rhoil,-1).^(pd-1)-max(Hir,circshift(Hil,-1))./nu+circshift(Hil,-1)./nu)),0)).^(1/(pd-1));
-      Uiplushalfminus(1:n)=((pd-1)/pd*max(((pd/(pd-1)*rhoir.^(pd-1)-max(Hir,circshift(Hil,-1))./nu+Hir./nu)),0)).^(1/(pd-1));
+%       Uiplushalfplus(1:n)=((pd-1)/pd*max(((pd/(pd-1)*circshift(rhoil,-1).^(pd-1)-max(Hir,circshift(Hil,-1))./nu+circshift(Hil,-1)./nu)),0)).^(1/(pd-1));
+%       Uiplushalfminus(1:n)=((pd-1)/pd*max(((pd/(pd-1)*rhoir.^(pd-1)-max(Hir,circshift(Hil,-1))./nu+Hir./nu)),0)).^(1/(pd-1));
+
+       Uiplushalfplus(1:n)=((pd-1)/(nu*pd))^(1/(pd-1))*max((-max(Hir,circshift(Hil,-1))+circshift(PiHil,-1)).^(1/(pd-1)),0);
+       Uiplushalfminus(1:n)=((pd-1)/(nu*pd))^(1/(pd-1))*max((-max(Hir,circshift(Hil,-1))+PiHir).^(1/(pd-1)),0);  %%add by YL
+%        
+
 elseif pd==1
-      Uiplushalfplus(1:n)=circshift(rhoil,-1).*exp((-max(Hir,circshift(Hil,-1))+circshift(Hil,-1))./nu);
-      Uiplushalfminus(1:n)=rhoir.*exp((-max(Hir,circshift(Hil,-1))+Hir)./nu);
-% % % % %       Uiplushalfplus(1:n)=circshift(rhoil,+1).*exp((-max(Hir,circshift(Hil,+1))+circshift(Hil,+1))./nu);
-% % % % %       Uiplushalfminus(1:n)=rhoir.*exp((-max(Hir,circshift(Hil,+1))+Hir)./nu);
+%         Uiplushalfplus(1:n)=circshift(rhoil,-1).*exp((-max(Hir,circshift(Hil,-1))+circshift(Hil,-1))./nu);
+%         Uiplushalfminus(1:n)=rhoir.*exp((-max(Hir,circshift(Hil,-1))+Hir)./nu);
+
+
+       Uiplushalfplus(1:n)=exp(-max(Hir,circshift(Hil,-1))+circshift(PiHil,-1));  %%%add by YL
+       Uiplushalfminus(1:n)=exp(-max(Hir,circshift(Hil,-1))+PiHir);
 end
 
 if bc==1 % Implement no flux conditions with bc==1
@@ -168,11 +188,13 @@ Uiplushalfminus(n)=0;
 end
 
 % Fix mistake in following lines! It should have uir and uil
-Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(U(n+1:2*n)./U(1:n),-1);
-Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
+
+% Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(U(n+1:2*n)./U(1:n),-1); 
+%  Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
+
 %Correction could be:
-%Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(uil,-1);
-%Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*uir;
+Uiplushalfplus(n+1:2*n)=Uiplushalfplus(1:n).*circshift(uil,-1);
+Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*uir;
 
 %--------------------------------------------------------------------------
 % Consturction of numerical flux whose inputs are the plus and minus values
@@ -183,23 +205,37 @@ Uiplushalfminus(n+1:2*n)=Uiplushalfminus(1:n).*U(n+1:2*n)./U(1:n);
   
   if pd>1      
       theta=(pd-1)/2;
-      Aplusrho=1/sqrt(48*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2-max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2);
-      Aminusrho=1/sqrt(48*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2-min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2);
+%      Aplusrho=1/sqrt(48*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2-max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2);
+%       Aminusrho=1/sqrt(48*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2-min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2);
+%       
+%       Aplusrhou=1/sqrt(108*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3-max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3);
+%       Aminusrhou=1/sqrt(108*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3-min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3);
+     
+      uuplus=desingula(Uiplushalfplus(n+1:2*n),Uiplushalfplus(1:n));  %%%add by YL
+      uuminus=desingula(Uiplushalfminus(n+1:2*n),Uiplushalfminus(1:n));  %%%add by YL
+%
+% 
+     Aplusrho=1/sqrt(48*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),uuminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2-max(zeros(n,1),uuminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^2);
+     Aminusrho=1/sqrt(48*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),uuplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2-min(zeros(n,1),uuplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^2);
       
-      Aplusrhou=1/sqrt(108*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3-max(zeros(n,1),Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3);
-      Aminusrhou=1/sqrt(108*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3-min(zeros(n,1),Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3);
-      
+      Aplusrhou=1/sqrt(108*nu)*Uiplushalfminus(1:n).^(1-theta).*(max(zeros(n,1),uuminus(1:n)+sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3-max(zeros(n,1),uuminus(1:n)-sqrt(3*nu)*Uiplushalfminus(1:n).^theta).^3);
+      Aminusrhou=1/sqrt(108*nu)*Uiplushalfplus(1:n).^(1-theta).*(min(zeros(n,1),uuplus(1:n)+sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3-min(zeros(n,1),uuplus(1:n)-sqrt(3*nu)*Uiplushalfplus(1:n).^theta).^3);
+
+
       F_iplushalf=zeros(2*n,1);
       F_iplushalf(1:n)=Aplusrho+Aminusrho;
       F_iplushalf(n+1:2*n)=Aplusrhou+Aminusrhou;  
       
   elseif pd==1
       lambdamax=zeros(n,1);
-      lambdamax(1:n)=max([abs(Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)+sqrt(nu)) abs(Uiplushalfplus(n+1:2*n)./Uiplushalfplus(1:n)-sqrt(nu)) abs(Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)+sqrt(nu)) abs(Uiplushalfminus(n+1:2*n)./Uiplushalfminus(1:n)-sqrt(nu))],[],2);
+       uuuplus=desingula(Uiplushalfplus(n+1:2*n),Uiplushalfplus(1:n));
+       uuuminus=desingula(Uiplushalfminus(n+1:2*n),Uiplushalfminus(1:n));
+      lambdamax(1:n)=max([abs(uuuplus+sqrt(nu)) abs(uuuplus-sqrt(nu)) abs(uuuminus+sqrt(nu)) abs(uuuminus-sqrt(nu))],[],2);
       
       F_iplushalf=zeros(2*n,1);
       F_iplushalf(1:n)=0.5*(Uiplushalfplus(n+1:2*n)+Uiplushalfminus(n+1:2*n))-0.5*lambdamax(1:n).*(Uiplushalfplus(1:n)-Uiplushalfminus(1:n));
-      F_iplushalf(n+1:2*n)=0.5*(Uiplushalfplus(n+1:2*n).^2./Uiplushalfplus(1:n)+nu*Uiplushalfplus(1:n)+Uiplushalfminus(n+1:2*n).^2./Uiplushalfminus(1:n)+nu*Uiplushalfminus(1:n))-0.5*lambdamax(1:n).*(Uiplushalfplus(n+1:2*n)-Uiplushalfminus(n+1:2*n));      
+      F_iplushalf(n+1:2*n)=0.5*(Uiplushalfplus(n+1:2*n).^2./Uiplushalfplus(1:n)+nu*Uiplushalfplus(1:n)+Uiplushalfminus(n+1:2*n).^2./Uiplushalfminus(1:n)+nu*Uiplushalfminus(1:n))-0.5*lambdamax(1:n).*(Uiplushalfplus(n+1:2*n)-Uiplushalfminus(n+1:2*n)); 
+            
   end
   
   F_iplushalf(isnan(F_iplushalf))=0; % remove NaN caused by no flux conditions
@@ -222,23 +258,26 @@ S=zeros(2*n,1);
           Siminushalfplus=1./deltax.*(nu*rhoil.^pd-nu*circshift(Uiplushalfplus(1:n),+1).^pd);
          
           
-
+        
                     
-           rhoilaver=rhoil-(Hir+Hil)/2/pd+Hil/pd;
-          rhoiraver=rhoir-(Hir+Hil)/2/pd+Hir/pd;
-          
-           Sic=1/deltax*(rhoir.^pd-rhoiraver.^pd-rhoil.^pd+rhoilaver.^pd);
-%           Sic=-1/deltax*(rhoil+rhoir)/2.*(Hir-Hil);
+%            rhoilaver=rhoil-(Hir+Hil)/2/pd+Hil/pd;
+%           rhoiraver=rhoir-(Hir+Hil)/2/pd+Hir/pd;
+
+          rhoilaver=((pd-1)/(nu*pd))^(1/(pd-1))*(-0.5*(Hir+Hil)+PiHil).^(1/(pd-1));
+          rhoiraver=((pd-1)/(nu*pd))^(1/(pd-1))*(-0.5*(Hir+Hil)+PiHir).^(1/(pd-1));
+
+           Sic=1./deltax.*(rhoir.^pd-rhoiraver.^pd-rhoil.^pd+rhoilaver.^pd);
+
       elseif pd==1
           
           Siplushalfminus=1./deltax.*(Uiplushalfminus(1:n)-rhoir);
           Siminushalfplus=1./deltax.*(rhoil-circshift(Uiplushalfplus(1:n),+1));
           
-          rhoilaver=rhoil.*exp(-0.5*(Hir+Hil)+Hil);
-          rhoiraver=rhoir.*exp(-0.5*(Hir+Hil)+Hir);
+%           rhoilaver=rhoil.*exp(-0.5*(Hir+Hil)+Hil);
+%           rhoiraver=rhoir.*exp(-0.5*(Hir+Hil)+Hir);
           
-%            rhoilaver=exp(-0.5*(Hir+Hil)+Hil+piil);
-%           rhoiraver=exp(-0.5*(Hir+Hil)+Hir+piir);
+           rhoilaver=exp(-0.5*(Hir+Hil)+PiHil);  %%%add by YL
+          rhoiraver=exp(-0.5*(Hir+Hil)+PiHir);
 %           
           Sic=1./deltax.*(rhoir-rhoiraver-rhoil+rhoilaver);
 
@@ -249,22 +288,17 @@ S=zeros(2*n,1);
       S(n+1:2*n)=Siplushalfminus+Siminushalfplus+Sic-gamma*U(1+n:2*n);
 
 if cCS==1
-    CSconv=CSconvfunction(x,U(1:n),U(n+1:2*n));
+    uu=desingula(U(n+1:2*n),U(1:n));
+    CSconv=CSconvfunction(x,U(1:n),uu);
     S(n+1:2*n)=S(n+1:2*n)-CSconv';
 end
 
-%   %%%% Cucker-Smale
-%   if choiceCS==0
-%       CSconv=zeros(length(x),1);
-%   elseif choiceCS==1
-%       CSconv=CSconvfunction(x,U(1:n),U(n+1:2*n)./U(1:n))';
-%   end
 
 %--------------------------------------------------------------------------
 % Finally, computation of the temporal derivative of the variables U
 %--------------------------------------------------------------------------  
 
-dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
+dUdt=-1./[deltax;deltax].*(F_iplushalf-F_iminushalf)+S;
 
 %--------------------------------------------------------------------------
 %--------------------------------------------------------------------------
@@ -273,6 +307,32 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
 % Auxiliary functions to compute the convolutions
 %--------------------------------------------------------------------------
 
+    function conv=Wconvrhofunction(x,rho,alpha,deltax)   
+        if alpha==0 % For convention W(x)=ln(x)
+           %conv=sum(log((repmat(x',length(x),1)-x)).*rho.*deltax)';
+           %corrected as below
+           conv=zeros(n,1);   %%add by YL
+           for i=1:n
+             for j=1:n
+                 if(abs(x(i)-x(j))<1e-12)
+                     conv(i)=conv(i)+0;
+                 else
+                    conv(i)=conv(i)+deltax(j)*(log(abs(x(i)-x(j))))*rho(j);
+                 end
+             end
+           end
+        elseif alpha>0
+            conv=sum(abs((repmat(x',length(x),1)-x)).^alpha./alpha.*rho.*deltax)';
+        elseif alpha<0 % Singularity treated by solving the integral analytically
+            matrix1=abs(repmat(x',length(x),1)-x).^(alpha);
+            matrix1(isinf(matrix1))=0;
+            conv=sum(matrix1/(alpha).*rho.*deltax)'+(2/(alpha)/(alpha+1)*(deltax/2).^(alpha+1).*rho);
+        end
+    end
+
+    function conv=Wgaussianconvrhofunction(x,rho,deltax)
+        conv=sum(-exp(-abs((repmat(x',length(x),1)-x).^2./2)).*rho.*deltax./(2*pi))';
+    end
   
       function [ir, il]=MUSCLreconstruction(u)
           
@@ -289,6 +349,7 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
  
           
       end
+
   
   function [ir, il]=MUSCLreconstructionvel(u,rhoir,rhoil,rho)
           
@@ -316,6 +377,19 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
           ul=u-0.5*du;
           
  end
+
+    function [uu]=desingula(q,rho)
+        uu=zeros(n,1);
+        for ij=1:n
+%             if(rho(ij)>1e-6)
+%                 uu(ij)=q(ij)/rho(ij);
+%             else
+%                 uu(ij)=0;
+%             end
+           uu(ij)=sqrt(2)*q(ij)*rho(ij)/sqrt(rho(ij)^4+(max(abs(rho(ij)),1e-6))^4);
+
+        end
+    end
 
  function [ur, ul]=MUSCLreconstruction2vel(u,rhoir,rhoil,rho)
           
@@ -349,8 +423,8 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   
       function conv=kconvrhofunction(x,rho)
-          deltax=x(2)-x(1);
-          conv=deltax*sum((repmat(x',length(x),1)-x).^2/2.*rho);
+          deltaxk=x(2)-x(1);
+          conv=deltaxk*sum((repmat(x',length(x),1)-x).^2/2.*rho);
           
 %           conv=zeros(n,1);
 %           for i=1:n/2
@@ -361,13 +435,14 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
       end
                            
       function conv=kderconvrhofunction(x,rho)
-          deltax=x(2)-x(1);
-          conv=deltax*sum((repmat(x',length(x),1)-x).*rho);
+          deltaxk=x(2)-x(1);
+          conv=deltaxk*sum((repmat(x',length(x),1)-x).*rho);
       end
   
       function conv=CSconvfunction(x,rho,u)
-          deltax=x(2)-x(1);
-          conv=deltax*sum((1+abs(repmat(x',length(x),1)-x)).^(-0.25).*(repmat(u',length(x),1)-u(1:n)).*rho(1:n).*repmat(rho',length(x),1));
+          deltaxk=x(2)-x(1);
+          conv=deltaxk*sum((1+abs(repmat(x',length(x),1)-x)).^(-0.25).*(repmat(u',length(x),1)-u(1:n)).*rho(1:n).*repmat(rho',length(x),1));
+        %conv=deltaxk*sum((1+abs(repmat(x',length(x),1)-x)).^(-0.25).*(repmat(u',length(x),1)-u(1:n)).*repmat(rho',length(x),1));
           
 %           conv=zeros(n,1);
 %           for i=1:n/2
@@ -377,5 +452,4 @@ dUdt=-1./deltax.*(F_iplushalf-F_iminushalf)+S;
           %conv=conv';
       end
   end
-  
   
